@@ -43,6 +43,14 @@ type AlfaSendBitModel struct {
 	SenderAddress string
 }
 
+type AlfaOrderOptions struct {
+   NotificationUrl string
+   RedirectUrl string
+   PayerName string
+   PayerEmail string
+   Test string
+   Status string
+}
 
 type AlfaClient struct {
 
@@ -91,7 +99,7 @@ func (ac AlfaClient) ParseRefundOrder(am AlfaModel, txtId int, recipientAddress 
 }
 
 // Using the json marshal command causessome issue for alfacoint validation
-func (ac AlfaClient) ParseBitSend(am AlfaSendBitModel, coinType int, amount float64) string {
+func (ac AlfaClient) ParseBitSend(am AlfaSendBitModel, coinType int, amount float64, destination string) string {
 
 	coinStringName := "bitcoin"
 	switch coinType {
@@ -108,12 +116,38 @@ func (ac AlfaClient) ParseBitSend(am AlfaSendBitModel, coinType int, amount floa
 		coinStringName = "dash"
 		break;
 	}
-
-	optionJson := "\"options\" : {\"address\": \"" + am.RecipientAddress + "\" , \"destination_tag\": \"1294967290\"},"
+	optionJson := "\"options\" : {\"address\": \"" + am.RecipientAddress + "\" , \"destination_tag\": \"" + destination + "\"},"
 	recipientEmail := "\"recipient_email\" : \"" + am.Recipient_email + "\""
 	referenceInfo := "\"reference\" : \"" + am.Recipient_name +  "\""
 	recipientName := "\"recipient_name\" : \"" + am.Recipient_name + "\"" + ", " + recipientEmail
 	dataJson  := "{\"name\" : \"" + am.Name + "\", \"secret_key\" : \"" + am.Secret_key + "\", " + "\"password\" : \"" + am.Password + "\", " + referenceInfo + "," + recipientName + "," + optionJson + "\"type\" : \"" +  coinStringName +  "\", \"amount\": \"" + ToString(amount) + "\""  +  "  }"
+	return dataJson
+}
+
+
+func (ac AlfaClient) ParseCreateOrder(am AlfaModel, opts AlfaOrderOptions, coinType int, amount float64, orderId string, currency string, description string) string {
+
+	coinStringName := "bitcoin"
+	switch coinType {
+	case 0:
+		coinStringName = "bitcoin"
+		break;
+	case 1:
+		coinStringName = "litecoin"
+		break;
+	case 2:
+		coinStringName = "ethereum"
+		break;
+	case 3:
+		coinStringName = "dash"
+		break;
+	}
+	optionJson := "\"options\" : {\"address\": \"" + opts.NotificationUrl + "\", \"redirectURL\": \"" + opts.RedirectUrl + "\", \"payerName\" : \"" + opts.PayerName + "\", \"payerEmail\" : \"" + opts.PayerEmail + "\" , \"test\" : \"" + opts.Test + "\"  , \"status\" : \"" + opts.Status + "\" }, "
+
+	order_id := "\"order_id\" : \"" + orderId + "\","
+	currency_txt := "\"currency\" : \"" + currency +  "\","
+	description_txt := "\"description\" : \"" + description + "\""
+	dataJson  := "{\"name\" : \"" + am.Name + "\", \"secret_key\" : \"" + am.Secret_key + "\", " + "\"password\" : \"" + am.Password + "\"," +  optionJson + "\"type\" : \"" +  coinStringName +  "\", \"amount\": \"" + ToString(amount) + "\", " + order_id + currency_txt + description_txt  +  " }"
 	return dataJson
 }
 
@@ -128,8 +162,8 @@ func (ac AlfaClient) GetBalance(am AlfaModel) string {
 
 // SendBit - BitSend primary use to payout salaries for staff or making direct deposits
 // to different cryptocurrency addresses
-func (ac AlfaClient) SendBit(am AlfaSendBitModel, coinType int, amount float64) string {
-	jsonData := ac.ParseBitSend(am, coinType, amount)
+func (ac AlfaClient) SendBit(am AlfaSendBitModel, coinType int, amount float64, destination string) string {
+	jsonData := ac.ParseBitSend(am, coinType, amount, destination)
 	fmt.Print(jsonData)
 	request := gorequest.New()
 
@@ -144,6 +178,15 @@ func (ac AlfaClient) GetSendBitStatus(am AlfaModel, sendBitId int) string {
 	fmt.Println(modelstr)
 	request := gorequest.New()
 	_, body, _ := request.Post(sendBitStatusUrl).Set(jsonContentType, jsonMineType).Send(modelstr).End()
+	return body
+}
+
+func (ac AlfaClient) CreateOrder(am AlfaModel, opts AlfaOrderOptions, coinType int, amount float64, orderId string, currency string, description string) string {
+
+	modelstr := ac.ParseCreateOrder(am,opts,  coinType, amount, orderId, currency,  description )
+
+	request := gorequest.New()
+	_, body, _ := request.Post(createOrderUrl).Set(jsonContentType, jsonMineType).Send(modelstr).End()
 	return body
 }
 
