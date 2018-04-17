@@ -33,7 +33,7 @@ type AlfaModel struct {
 	Password   string
 }
 
-type AlfaModelSendBit struct {
+type AlfaSendBitModel struct {
 	Name       string
 	Secret_key string
 	Password   string
@@ -43,6 +43,7 @@ type AlfaModelSendBit struct {
 	SenderAddress string
 }
 
+
 type AlfaClient struct {
 
 	appName string
@@ -50,15 +51,22 @@ type AlfaClient struct {
 	apiPassword string
 }
 
+// Provides MD5 hashing for password
 func (ac AlfaClient) HashMd5(source string) string {
 	hasher := md5.New()
 	hasher.Write([]byte(source))
 	return hex.EncodeToString(hasher.Sum(nil))
 }
 
+// Create new instance of Alphamodel
 func (ac AlfaClient) New(appName string, api_secret string, apiPassword string) AlfaModel {
 	key := ac.HashMd5(apiPassword)
 	return AlfaModel{appName, api_secret, key}
+}
+
+func (ac AlfaClient) NewSendBitModel(appName string, api_secret string, apiPassword string, recipient_email string, recipient_name string, recipientAddress string, senderAddress string) AlfaSendBitModel {
+	key := ac.HashMd5(apiPassword)
+	return AlfaSendBitModel{appName, api_secret, key, recipient_email,recipient_name, recipientAddress, senderAddress }
 }
 
 // Using the json marshal command causessome issue for alfacoint validation
@@ -83,7 +91,7 @@ func (ac AlfaClient) ParseRefundOrder(am AlfaModel, txtId int, recipientAddress 
 }
 
 // Using the json marshal command causessome issue for alfacoint validation
-func (ac AlfaClient) ParseBitSend(am AlfaModelSendBit, coinType int, amount float64) string {
+func (ac AlfaClient) ParseBitSend(am AlfaSendBitModel, coinType int, amount float64) string {
 
 	coinStringName := "bitcoin"
 	switch coinType {
@@ -110,75 +118,59 @@ func (ac AlfaClient) ParseBitSend(am AlfaModelSendBit, coinType int, amount floa
 }
 
 // Get balance
-func (ac AlfaClient) GetBalance(am AlfaModel) {
+func (ac AlfaClient) GetBalance(am AlfaModel) string {
 	jsonCredential := ac.ParseCredential(am)
 	fmt.Println(jsonCredential)
-
 	request := gorequest.New()
-	res, _, _ := request.Post(getBalanceUrl).Set(jsonContentType, jsonMineType).Send(jsonCredential).End()
-	fmt.Println(res.Status)
-	fmt.Println(res.Body)
+	_, body, _ := request.Post(getBalanceUrl).Set(jsonContentType, jsonMineType).Send(jsonCredential).End()
+	return body;
 }
 
-// SendBit - BitSend primary use to payout salaries for staff or making direct deposits to different cryptocurrency addresses
-func (ac AlfaClient) SendBit(am AlfaModelSendBit, coinType int, amount float64) {
+// SendBit - BitSend primary use to payout salaries for staff or making direct deposits
+// to different cryptocurrency addresses
+func (ac AlfaClient) SendBit(am AlfaSendBitModel, coinType int, amount float64) string {
 	jsonData := ac.ParseBitSend(am, coinType, amount)
 	fmt.Print(jsonData)
 	request := gorequest.New()
 
-	res, _, _ := request.Post(sendBitUrl).Set(jsonContentType, jsonMineType).Send(jsonData).End()
-
-	fmt.Println(res.Status)
-	fmt.Println(res.Body)
+	_, body, _ := request.Post(sendBitUrl).Set(jsonContentType, jsonMineType).Send(jsonData).End()
+	return body
 }
 
 // Bit Status - BitSend status primary use to get information of bitsend payout
-func (ac AlfaClient) SendBitStatus(am AlfaModel, sendBitId int) {
+func (ac AlfaClient) GetSendBitStatus(am AlfaModel, sendBitId int) string {
 
 	modelstr := ac.ParseBitSendStatus(am, sendBitId)
-
 	fmt.Println(modelstr)
 	request := gorequest.New()
-	res, _, _ := request.Post(sendBitStatusUrl).Set(jsonContentType, jsonMineType).Send(modelstr).End()
-
-	fmt.Println(res.Status)
-	fmt.Println(res.Body)
+	_, body, _ := request.Post(sendBitStatusUrl).Set(jsonContentType, jsonMineType).Send(modelstr).End()
+	return body
 }
-// Create Order - Pay someone
-
 
 // Order status
-func (ac AlfaClient) GetOrderStatus(am AlfaModel, txtId int) {
+func (ac AlfaClient) GetOrderStatus(am AlfaModel, txtId int) string {
 
 	modelstr := ac.ParseOrderStatus(am, txtId)
-
 	fmt.Println(modelstr)
 	request := gorequest.New()
-	res, _, _ := request.Post(orderStatusUrl).Set(jsonContentType, jsonMineType).Send(modelstr).End()
-
-	fmt.Println(res.Status)
-	fmt.Println(res.Body)
+	_, body, _ := request.Post(orderStatusUrl).Set(jsonContentType, jsonMineType).Send(modelstr).End()
+	return body
 }
 
 // Refund
-func (ac AlfaClient) RefundOrder(am AlfaModel, txtId int, address string, amount float64) {
+func (ac AlfaClient) RefundOrder(am AlfaModel, txtId int, address string, amount float64) string {
 
 	modelstr := ac.ParseRefundOrder(am, txtId, address, amount)
-
-	fmt.Println(modelstr)
 	request := gorequest.New()
-	res, _, _ := request.Post(refundUrl).Set(jsonContentType, jsonMineType).Send(modelstr).End()
-
-	fmt.Println(res.Status)
-	fmt.Println(res.Body)
+	_, body, _ := request.Post(refundUrl).Set(jsonContentType, jsonMineType).Send(modelstr).End()
+	return body
 }
 
 // Get Rate - Get rates for pair
-func (ac AlfaClient) GetRates() {
+func (ac AlfaClient) GetRates() string {
 	request := gorequest.New()
-	res, _, _ := request.Get(ratesUrl).Set(jsonContentType, jsonMineType).End()
-	fmt.Println(res.Status)
-	fmt.Println(res.Body)
+	_, body, _ := request.Get(ratesUrl).Set(jsonContentType, jsonMineType).End()
+	return body
 }
 
 // Get Rates - Get rate for all available pairs
